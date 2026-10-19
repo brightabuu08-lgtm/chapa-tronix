@@ -1,0 +1,5 @@
+'use client';
+import type {ReactNode} from 'react';
+import {Zap} from 'lucide-react';
+import {Link,useShop} from '../Store';
+export default function AccessShell({children,hideHeader=false}:{children:ReactNode;hideHeader?:boolean}){const {t,en,toggleLanguage}=useShop();return <div className="access-shell">{!hideHeader&&<header className="access-shell-header container"><Link to="/account" className="brand"><span className="brand-mark"><Zap size={23} aria-hidden="true" fill="currentColor"/></span><span>chapa<span className="brand-light">tronix</span><small>Where Intelligence Meets Mechanics</small></span></Link><button className="button secondary small" type="button" aria-label={t('Badili lugha','Switch language')} onClick={toggleLanguage}>{en?'EN':'SW'}</button></header>}{children}<footer className="access-shell-footer container"><Link to="/privacy">{t('Faragha','Privacy')}</Link><Link to="/terms">{t('Masharti','Terms')}</Link><Link to="/contact">{t('Msaada','Support')}</Link></footer></div>;}

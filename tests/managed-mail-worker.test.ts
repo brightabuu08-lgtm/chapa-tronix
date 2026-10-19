@@ -1,0 +1,7 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {EventEmitter} from 'node:events';
+import {mailWorkerEnvironment,manageMailWorker} from '../scripts/managed-mail-worker.mjs';
+const env={DATABASE_URL:'postgresql://fixture',MAIL_PROVIDER:'brevo',MAIL_FROM:'test@example.test',BREVO_API_KEY:'mock-only',APP_URL:'https://example.test',ADMIN_PASSWORD:'must-not-inherit',DATABASE_MIGRATION_URL:'must-not-inherit'};
+test('mail worker excludes bootstrap secrets and stays off for isolated or unconfigured launches',()=>{assert.equal(mailWorkerEnvironment(env,true),null);assert.equal(mailWorkerEnvironment({...env,BREVO_API_KEY:''}),null);const actual=mailWorkerEnvironment(env)!;assert.equal(actual.APP_URL,env.APP_URL);assert.equal(actual.ADMIN_PASSWORD,undefined);assert.equal(actual.DATABASE_MIGRATION_URL,undefined);});
+test('mail worker starts once after readiness and stops with its web server',()=>{const server:any=new EventEmitter();server.stdout=new EventEmitter();const worker:any=new EventEmitter();let launches=0,stops=0;worker.kill=()=>{stops++;};const stop=manageMailWorker(server,{root:process.cwd(),env},(()=>{launches++;return worker;}) as any)!;server.stdout.emit('data','Starting');assert.equal(launches,0);server.stdout.emit('data','Ready in 300ms');server.stdout.emit('data','Ready in 400ms');assert.equal(launches,1);server.emit('exit',0);assert.equal(stops,1);stop();});

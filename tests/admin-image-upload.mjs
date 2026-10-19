@@ -1,0 +1,40 @@
+import {assertIsolatedTestServer} from './isolated-server.mjs';
+import {chromium} from '@playwright/test';
+import {readFile} from 'node:fs/promises';
+import {randomUUID} from 'node:crypto';
+import sharp from 'sharp';
+import assert from 'node:assert/strict';
+const base=process.env.TEST_BASE_URL||'http://localhost:3107';
+await assertIsolatedTestServer(base);
+const values={ADMIN_EMAIL:process.env.ADMIN_EMAIL,ADMIN_PASSWORD:process.env.ADMIN_PASSWORD};if(!values.ADMIN_EMAIL||!values.ADMIN_PASSWORD)throw new Error('Provide isolated test admin credentials.');
+const id='qa-photo-'+randomUUID(),name='QA Uploaded Image '+id.slice(-6);
+const browser=await chromium.launch({channel:'chrome',headless:true});
+let context,stage='start',created=false;
+try{
+ context=await browser.newContext();const page=await context.newPage();page.setDefaultTimeout(60000);
+ const requests=[];page.on('request',request=>requests.push(request.url()));
+ stage='sign in';await page.goto(base+'/account');
+ assert.equal(await page.locator('.auth-card form').getAttribute('method'),'post');
+ await page.locator('[name="identifier"]').fill(values.ADMIN_EMAIL);await page.locator('[name="password"]').fill(values.ADMIN_PASSWORD);
+ await page.locator('form').getByRole('button',{name:'Ingia',exact:true}).click();await page.locator('.account-actions').waitFor();
+ assert.ok(requests.every(url=>!new URL(url).searchParams.has('password')));
+ stage='product form';await page.goto(base+'/admin');await page.locator('.admin-nav').getByRole('button',{name:'Bidhaa',exact:true}).click();await page.getByRole('button',{name:'Ongeza bidhaa',exact:true}).click();
+ const form=page.locator('.admin-form form');assert.equal(await form.locator('[name="images"]').inputValue(),'');
+ for(const [key,value] of Object.entries({id,slug:id,name,sku:id,brand:'QA',price:'40000',stock:'3',voltage:'3.3V',interface:'GPIO',description:'Bidhaa ya kupima picha inayopakiwa.',descriptionEn:'Temporary uploaded image test product.'}))await form.locator(`[name="${key}"]`).fill(value);
+ await form.locator('[name="discountPercent"]').fill('25');
+ stage='image upload';const bytes=await sharp({create:{width:240,height:180,channels:3,background:'#14aa77'}}).png().toBuffer();
+ const uploaded=page.waitForResponse(r=>r.url().endsWith('/api/admin/product-image')&&r.request().method()==='POST');
+ await page.locator('.admin-form input[type="file"]').setInputFiles({name:'qa-photo.png',mimeType:'image/png',buffer:bytes});assert.equal((await uploaded).status(),201);
+ await page.waitForFunction(()=>document.querySelector('[name="images"]')?.value.startsWith('/media/'));
+ const image=await form.locator('[name="images"]').inputValue();assert.match(image,/^\/media\/.+\.webp$/);
+ await page.waitForFunction(()=>{const image=document.querySelector('.image-edit-grid img');return image?.complete&&image.naturalWidth>0});
+ stage='save';const saved=page.waitForResponse(r=>r.url().endsWith('/api/admin/products')&&r.request().method()==='POST');await form.getByRole('button',{name:'Hifadhi bidhaa',exact:true}).click();assert.ok((await saved).ok());created=true;
+ stage='public image';const catalog=await (await context.request.get(base+'/api/catalog')).json();const savedProduct=catalog.products.find(p=>p.id===id);assert.equal(savedProduct.images[0],image);assert.equal(savedProduct.price,30000);assert.equal(savedProduct.oldPrice,40000);
+ await page.goto(base+'/product/'+id);await page.getByRole('heading',{name,exact:true}).waitFor();
+ await page.waitForFunction(()=>{const image=document.querySelector('.detail-photo img');return image?.complete&&image.naturalWidth>0});
+ const media=await context.request.get(base+image);assert.equal(media.status(),200);assert.ok(media.headers()['content-type'].includes('image/webp'));
+ stage='invalid upload';const invalid=await context.request.post(base+'/api/admin/product-image',{headers:{Origin:base},multipart:{file:{name:'fake.png',mimeType:'image/png',buffer:Buffer.from('not an image')}}});assert.equal(invalid.status(),400);
+ stage='clean URL';const redirect=await context.request.get(base+'/account?password=non-secret-test-marker&identifier=test',{maxRedirects:0});assert.equal(redirect.status(),303);assert.ok(!redirect.headers().location.includes('password'));
+ console.log('PASS: selected image replaces the Arduino default, preview and public image load, invalid uploads fail, login uses POST and credential query parameters are removed.');
+}catch(error){console.error('FAIL: image regression at stage '+stage+' ('+String(error.message).split('\n')[0]+')');process.exitCode=1;}
+finally{if(created&&context)await context.request.delete(base+'/api/admin/products/'+id,{headers:{Origin:base,'Content-Type':'application/json'}}).catch(()=>{});await browser.close();}

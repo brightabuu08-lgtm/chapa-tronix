@@ -1,0 +1,53 @@
+import {assertIsolatedTestServer} from './isolated-server.mjs';
+import assert from 'node:assert/strict';
+import {randomUUID} from 'node:crypto';
+import {PrismaClient} from '../generated/prisma-v6';
+const base=process.env.TEST_BASE_URL||'http://localhost:3107';
+await assertIsolatedTestServer(base);
+if(!process.env.DATABASE_URL?.includes('55437')||new URL(process.env.DATABASE_URL).pathname!=='/chapa_tronix_test')throw new Error('Integration tests require the isolated test database on port 55437.');
+const db=new PrismaClient();
+const testPhone='07'+String(Math.floor(Math.random()*90000000)+10000000);
+const unique=randomUUID(),email='qa-'+unique+'@example.com',password='Test-Only-Password-123456';
+let cookie='';let passed=0;
+async function request(path:string,body?:unknown,method='POST',origin=base){const r=await fetch(base+'/api/'+path,{method,headers:{'Content-Type':'application/json',Origin:origin,...(cookie?{Cookie:cookie}:{})},body:body?JSON.stringify(body):undefined});const d=await r.json();return {r,d};}
+function ok(condition:unknown,message:string){assert.ok(condition,message);passed++;console.log('PASS '+message)}
+try{
+ let result=await request('auth/register',{name:'QA Customer',email,password});ok(result.r.status===201,'register creates a customer account');cookie=result.r.headers.get('set-cookie')!.split(';')[0];ok(result.r.headers.get('set-cookie')!.includes('HttpOnly'),'session cookie is HttpOnly');
+ result=await request('admin/products',undefined,'GET');ok(result.r.status===403,'customer cannot access admin products');
+ result=await request('account',{name:'Changed',phone:testPhone},'PATCH','https://untrusted.example');ok(result.r.status===403,'cross-origin profile mutation is blocked');
+ result=await request('auth/logout',{});ok(result.r.ok,'logout revokes session');cookie='';
+ result=await request('auth/login',{identifier:email,password:'wrong-password'});ok(result.r.status===401,'wrong password is rejected');
+ result=await request('auth/login',{identifier:email,password});ok(result.r.ok,'valid password starts a new session');cookie=result.r.headers.get('set-cookie')!.split(';')[0];
+ const id='qa-stock-'+unique;
+ await db.product.create({data:{id,slug:id,name:'QA stock test',sku:id,description:'Temporary QA product',descriptionEn:'Temporary QA product',price:1000,stock:1,categoryId:'boards',brand:'QA',voltage:'5V',interface:'GPIO',images:['/images/arduino-uno.jpg'],specs:{},compatibility:'Test only'}});
+ const checkout={name:'QA Customer',email,phone:testPhone,region:'Dar es Salaam',street:'QA address Kigamboni',delivery:'pickup',method:'cod',items:[{productId:id,quantity:1}],idempotencyKey:randomUUID(),total:1};
+ result=await request('checkout',checkout);ok(result.r.status===201,'checkout persists an order');ok(result.d.order.total===1000,'server ignores tampered client total');const number=result.d.order.number;
+ result=await request('checkout',checkout);ok(result.r.status===201&&result.d.order.number===number,'idempotent checkout returns the same order');ok((await db.product.findUnique({where:{id}}))?.stock===0,'stock is deducted exactly once');
+ result=await request('checkout',{...checkout,idempotencyKey:randomUUID()});ok(result.r.status===409,'out-of-stock checkout is rejected');
+ const user=await db.user.findUniqueOrThrow({where:{email}});await db.user.update({where:{id:user.id},data:{role:'ADMIN'}});
+ result=await request('admin/products',undefined,'GET');ok(result.r.ok,'authorized admin can inspect products');
+ const managedId='qa-admin-'+unique;
+ const managed={id:managedId,slug:managedId,name:'QA ESP32 Sensor Kit',sku:managedId,description:'Vifaa vya majaribio ya usimamizi wa duka.',descriptionEn:'Temporary inventory-management test kit.',price:42000,stock:5,categoryId:'boards',brand:'QA',voltage:'3.3V',interface:'GPIO',images:['/images/esp32.jpg'],specs:{Voltage:'3.3V'},compatibility:'Test product only',featured:false};
+ result=await request('admin/products',managed);ok(result.r.ok,'admin creates a product through the API');
+ result=await request('catalog',undefined,'GET');ok(result.d.products.some((p:any)=>p.id===managedId),'new product is visible in the storefront catalog');
+ result=await request('admin/products/'+managedId,{...managed,stock:8,price:45000},'PATCH');ok(result.r.ok,'admin updates product metadata without overwriting stock');
+ ok((await db.product.findUniqueOrThrow({where:{id:managedId}})).stock===5,'metadata update cannot overwrite inventory');
+ result=await request('admin/inventory',{productId:managedId,delta:3,expectedVersion:0,reason:'New stock received in test'});ok(result.r.ok,'admin adjusts stock through the inventory ledger');ok((await db.product.findUniqueOrThrow({where:{id:managedId}})).stock===8,'inventory delta is persisted');
+ result=await request('admin/products/'+managedId,undefined,'DELETE');ok(result.r.ok,'admin archives a product');
+ result=await request('catalog',undefined,'GET');ok(!result.d.products.some((p:any)=>p.id===managedId),'archived product is removed from the public catalog');
+ const adminCookie=cookie;cookie='';
+ result=await request('auth/register',{name:'Chat Customer',email:'chat-'+unique+'@example.com',password});ok(result.r.status===201,'second customer account can register');cookie=result.r.headers.get('set-cookie')!.split(';')[0];
+ result=await request('chat',{body:'Which sensor works with an ESP32 at 3.3V?'});ok(result.r.status===201,'customer message is saved');
+ result=await request('chat',undefined,'GET');const threadId=result.d.threads[0].id;ok(result.d.threads.length===1&&result.d.threads[0].messages.length===1,'customer reads only their conversation');
+ const customerCookie=cookie;cookie=adminCookie;
+ result=await request('chat',{threadId,body:'Choose a sensor with a 3.3V compatible output.'});ok(result.r.status===201,'admin replies to the customer');
+ cookie=customerCookie;result=await request('chat',undefined,'GET');ok(result.d.threads[0].messages.length===2&&result.d.threads[0].messages[1].fromStaff,'customer can read the seller reply');
+ result=await request('chat',{threadId:'c0000000000000000000000000',body:'A customer cannot select another thread.'});ok(result.r.status===201,'customer-supplied thread ID cannot redirect the message away from their own conversation');
+ cookie=adminCookie;
+ const order=await db.order.findUniqueOrThrow({where:{number}});
+ result=await request('admin/orders/'+order.id,{status:'CANCELLED'},'PATCH');ok(result.r.ok,'admin can cancel pending order');ok((await db.product.findUnique({where:{id}}))?.stock===1,'cancellation restores stock');ok((await db.product.findUniqueOrThrow({where:{id}})).inventoryVersion===2,'cancellation increments the product inventory version');
+ result=await request('admin/orders/'+order.id,{status:'CANCELLED'},'PATCH');ok(result.r.status===400,'duplicate cancellation cannot restore stock twice');
+ const concurrent=await Promise.all([request('checkout',{...checkout,idempotencyKey:randomUUID()}),request('checkout',{...checkout,idempotencyKey:randomUUID()})]);ok(concurrent.filter(x=>x.r.status===201).length===1,'concurrent checkout cannot oversell the last unit');ok((await db.product.findUnique({where:{id}}))?.stock===0,'concurrent stock remains nonnegative');
+ result=await request('payments/webhook',{event:'charge.completed',data:{id:1}});ok(result.r.status===401,'unsigned payment webhook is rejected');
+ console.log(JSON.stringify({integrationChecks:passed,result:'passed'}));
+}finally{await db.product.updateMany({where:{id:{in:['qa-stock-'+unique,'qa-admin-'+unique]}},data:{active:false}});await db.$disconnect()}

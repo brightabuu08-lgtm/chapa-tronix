@@ -1,0 +1,9 @@
+import {z} from 'zod';
+export const businessSchema=z.object({
+ name:z.string().min(2).max(100).default('chapa tronix'),phone:z.string().max(40).default(''),email:z.union([z.email(),z.literal('')]).default(''),whatsapp:z.string().regex(/^(?:\+?[0-9]{9,15})?$/).default(''),address:z.string().max(300).default('Kigamboni, Dar es Salaam'),hours:z.string().max(200).default(''),
+ deliveryDar:z.number().int().min(0).max(1000000).default(5000),deliveryOther:z.number().int().min(0).max(1000000).default(10000),codEnabled:z.boolean().default(true),pickupEnabled:z.boolean().default(true),usdRate:z.number().positive().nullable().default(null),taxNote:z.string().max(300).default(''),taxRateBps:z.number().int().min(0).max(10000).nullable().default(null),taxMode:z.enum(['UNCONFIGURED','INCLUSIVE','EXCLUSIVE','EXEMPT']).default('UNCONFIGURED'),taxLabel:z.string().max(100).default(''),
+ privacy:z.string().max(12000).default(''),terms:z.string().max(12000).default(''),returns:z.string().max(12000).default(''),shipping:z.string().max(12000).default(''),policiesApproved:z.boolean().default(false),pricesApproved:z.boolean().default(false),deliveryApproved:z.boolean().default(false)
+}).refine(v=>!['INCLUSIVE','EXCLUSIVE'].includes(v.taxMode)||v.taxRateBps!==null,{path:['taxRateBps'],message:'Set an approved tax rate for this treatment.'}).refine(v=>!v.policiesApproved||[v.privacy,v.terms,v.returns,v.shipping].every(text=>text.trim().length>=50),{path:['policiesApproved'],message:'Complete the four policy texts before approving them.'});
+export type BusinessSettings=z.infer<typeof businessSchema>;
+export const defaultBusiness=businessSchema.parse({});
+export const shippingCost=(business:BusinessSettings,region:string,delivery:string)=>delivery==='pickup'?0:region==='Dar es Salaam'?business.deliveryDar:business.deliveryOther;

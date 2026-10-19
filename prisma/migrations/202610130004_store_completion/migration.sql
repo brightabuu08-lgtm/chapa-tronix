@@ -1,0 +1,10 @@
+ALTER TABLE "User" ADD COLUMN "emailVerifiedAt" TIMESTAMP(3);
+ALTER TABLE "Category" ADD COLUMN "active" BOOLEAN NOT NULL DEFAULT true;
+ALTER TABLE "Product" ADD COLUMN "relatedIds" TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[], ADD COLUMN "projectTags" TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[];
+ALTER TABLE "Variant" ADD COLUMN "oldPrice" INTEGER, ADD COLUMN "active" BOOLEAN NOT NULL DEFAULT true;
+ALTER TABLE "InventoryMovement" ADD COLUMN "variantId" TEXT;
+ALTER TABLE "Order" ADD COLUMN "couponCode" TEXT, ADD COLUMN "reservationExpiresAt" TIMESTAMP(3), ADD COLUMN "stockReleased" BOOLEAN NOT NULL DEFAULT false;
+CREATE TABLE "VerificationToken" ("id" TEXT PRIMARY KEY,"userId" TEXT NOT NULL,"purpose" TEXT NOT NULL,"expiresAt" TIMESTAMP(3) NOT NULL,"usedAt" TIMESTAMP(3),"createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE INDEX "VerificationToken_userId_purpose_idx" ON "VerificationToken"("userId","purpose");
+CREATE TABLE "EmailJob" ("id" TEXT PRIMARY KEY,"recipient" TEXT NOT NULL,"subject" TEXT NOT NULL,"text" TEXT NOT NULL,"status" TEXT NOT NULL DEFAULT 'PENDING',"attempts" INTEGER NOT NULL DEFAULT 0,"createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,"sentAt" TIMESTAMP(3),"lastError" TEXT);
+CREATE INDEX "EmailJob_status_createdAt_idx" ON "EmailJob"("status","createdAt");

@@ -1,0 +1,70 @@
+.admin-workspace{--primary:#17675f;--accent:#237e73;--line:#dce5eb;background:#f2f5f8;color:#233949}
+.admin-shell-header{background:#142b40;border-bottom:1px solid #2a4459}
+.admin-shell-header .container,.admin-workspace main>.container,.admin-shell-footer>.container{width:min(1360px,calc(100% - 64px))}
+.admin-shell-bar{min-height:76px;padding-block:12px}
+.admin-shell-brand{font-size:25px;color:#f1f6f9;gap:10px}
+.admin-shell-brand .brand-mark{background:#24485a;color:#8edcc7;border-radius:10px;width:38px;height:40px}
+.admin-shell-brand small,.admin-shell-identity small{color:#abc4d1}
+.admin-shell-identity{color:#edf6f6;font-size:12px}.admin-shell-identity b{font-weight:500}
+.admin-shell-control{min-height:36px;padding:7px 10px;font-size:11px;color:#dbe9ef;border-color:#365166;background:#1b354a}
+.admin-shell-control:hover{background:#29485c;color:#fff}
+.admin-workspace .page{padding-block:24px 30px}
+.admin-workspace .page-heading{margin:0 0 23px}
+.admin-workspace .page-heading .eyebrow{font-size:8px;letter-spacing:1.6px;color:#64818f}
+.admin-workspace .page-heading h1{font-size:29px;letter-spacing:-1px;margin-top:6px;color:#1c374c}
+.admin-workspace .admin-layout{display:grid;grid-template-columns:208px minmax(0,1fr);gap:24px;align-items:start}
+.admin-workspace .admin-layout>div{min-width:0}
+.admin-workspace .admin-nav{display:flex;flex-direction:column;position:sticky;top:18px;padding:12px 9px;background:#183247;border:1px solid #183247;border-radius:12px;gap:3px;max-height:calc(100dvh - 36px);overflow-y:auto}
+.admin-nav-label{display:block;font-size:8px;letter-spacing:1.6px;color:#91b2c3;padding:8px 12px 12px}
+.admin-workspace .admin-nav button{display:flex;align-items:center;gap:10px;text-align:left;min-height:39px;border-radius:6px;padding:9px 11px;font-size:11px;line-height:1.4;color:#bad0db;border:1px solid transparent;background:transparent;white-space:nowrap}
+.admin-workspace .admin-nav button svg{height:16px;width:16px;stroke-width:1.7}
+.admin-workspace .admin-nav button:hover{color:#fff;background:#24475c}
+.admin-workspace .admin-nav button.active{color:#b7f0de;background:#2b5060;border-color:#406977;box-shadow:inset 3px 0 #94dfc7;font-weight:600}
+.admin-workspace .admin-toolbar{gap:14px;margin-bottom:18px;min-height:38px;align-items:center}
+.admin-workspace .admin-toolbar h2{font-size:21px;letter-spacing:-.6px;color:#203d51}
+.admin-workspace .admin-toolbar>div{display:flex;flex-wrap:wrap;gap:8px}
+.admin-workspace .button{min-height:36px;border-radius:7px;padding:9px 13px;font-size:11px;line-height:1.4;gap:7px}
+.admin-workspace .button.secondary{background:#fff;color:#345464;border-color:#d2dfe6}
+.admin-workspace .button:hover{filter:brightness(.96)}
+.admin-workspace .text-button{font-size:11px;color:#18675f}
+.admin-workspace .admin-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin:0 0 20px}
+.admin-workspace .admin-metric{background:#fff;border:1px solid #dfe7ed;border-radius:10px;padding:17px;min-width:0;box-shadow:0 3px 9px #1b3c5003}
+.admin-metric>div{display:flex;justify-content:space-between;align-items:flex-start;gap:7px}
+.admin-workspace .admin-metric small{font-size:11px;line-height:1.5;color:#627987;display:block}
+.admin-metric>div>span{display:grid;place-items:center;border-radius:7px;min-width:31px;height:31px;background:#e5f2ec;color:#28766a}
+.admin-metric.blue>div>span{background:#e7eff7;color:#427498}.admin-metric.slate>div>span{background:#edf0f5;color:#63758a}.admin-metric.amber>div>span{background:#fbf0df;color:#a07835}
+.admin-workspace .admin-metric b{display:block;margin-top:13px;color:#234358;font-family:'Space Grotesk',sans-serif;font-size:clamp(19px,1.8vw,27px);line-height:1.2;letter-spacing:-.8px;overflow-wrap:anywhere;font-weight:600}
+.admin-metric p{font-size:9px;color:#7b8f9a;line-height:1.5;margin-top:7px}
+.admin-workspace .chart{background:#fff;border:1px solid #dfe7ed;border-radius:11px;padding:22px 23px;margin-bottom:25px}
+.admin-workspace .chart h3{font-size:15px;letter-spacing:-.2px;color:#284a5c}
+.admin-workspace .chart .muted{font-size:11px;margin-top:9px}
+.admin-workspace .chart.chart-empty{display:flex;gap:16px;align-items:center;min-height:108px;padding:22px}
+.chart-empty>span{display:grid;place-items:center;background:#eef4f7;border:1px solid #dde8ed;border-radius:10px;min-width:47px;height:47px;color:#7492a1}
+.admin-workspace .chart-empty p{font-size:12px;color:#718995;margin-top:8px;line-height:1.6}
+.admin-workspace .chart-bars{height:190px;border-color:#e1e8ed;gap:23px;margin-top:35px}
+.admin-workspace .chart-bars>div{background:#78b8aa;border-radius:5px 5px 0 0;max-width:76px;min-height:2px}
+.admin-workspace .chart-bars b{font-size:9px;white-space:nowrap;color:#597481;font-weight:500}.admin-workspace .chart-bars span{font-size:10px;color:#607e8d}
+.admin-workspace .admin-layout>div>h3{font-size:15px;letter-spacing:-.2px;color:#284a5c;margin-bottom:12px}
+.admin-workspace .data-table-wrap{width:100%;max-width:100%;overflow:auto;border:1px solid #dfe7ed;border-radius:10px;background:#fff;margin-top:10px}
+.admin-workspace .data-table{font-size:12px;margin:0;min-width:540px}
+.admin-workspace .data-table th{background:#eaf0f5;color:#607b8b;font-size:9px;font-weight:600;letter-spacing:.7px;text-transform:uppercase;padding:13px 14px;white-space:nowrap}
+.admin-workspace .data-table td{padding:12px 14px;border-color:#e8eef2;vertical-align:middle;font-size:12px;line-height:1.6}
+.admin-workspace .data-table tbody tr:hover{background:#f7fbfc}
+.admin-workspace .data-table td button{min-height:30px;border-radius:5px;padding:5px 9px;background:#eef5f5;color:#27645f;font-size:10px;border:1px solid #dae7e6;margin:2px 3px 2px 0}
+.admin-workspace .data-table td select{min-width:120px;font-size:11px;padding:7px 9px;border-radius:6px;background:#fff}
+.admin-workspace .admin-form,.admin-workspace .form-section{background:#fff;border:1px solid #dce6ec;border-radius:11px;padding:23px;margin-block:16px 23px}
+.admin-workspace .admin-form h3,.admin-workspace .form-section h3{font-size:17px;letter-spacing:-.3px}
+.admin-workspace label{font-size:12px;color:#4b6574}
+.admin-workspace input,.admin-workspace select,.admin-workspace textarea{font-size:13px;border-radius:6px;border-color:#cfdde5;min-height:38px;padding:9px 11px;background:#fff}
+.admin-workspace input[type=checkbox],.admin-workspace input[type=radio]{min-height:0;padding:0}
+.admin-workspace .admin-layout>div>label{display:block;max-width:260px;font-size:11px;margin-bottom:17px}
+.admin-workspace .panel{background:#f7fafb;border:1px solid #dce7ec;border-radius:8px;padding:16px;margin-block:14px}
+.admin-workspace .panel summary{font-size:12px;font-weight:600;cursor:pointer;color:#27675d}
+.admin-workspace .panel p{font-size:11px;line-height:1.7;margin-top:10px;color:#657c88}
+.admin-workspace .panel form{margin-top:16px}
+.admin-workspace .pagination{margin-top:20px;gap:8px}.admin-workspace .pagination button{height:35px;min-width:35px;border-radius:6px;background:#fff;border:1px solid #d6e2e8}
+.admin-workspace .pagination span{font-size:11px;color:#68818e}
+.admin-shell-footer{background:#edf2f6;border-color:#dbe5ec;padding:12px 0;font-size:10px;color:#718895}
+.admin-access-intro>svg{color:#277d70}
+@media(max-width:1150px) and (min-width:901px){.admin-workspace .admin-layout{grid-template-columns:180px minmax(0,1fr);gap:18px}.admin-workspace .admin-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:900px){.admin-shell-header .container,.admin-workspace main>.container,.admin-shell-footer>.container{width:calc(100% - 32px)}.admin-shell-bar{gap:12px;padding-block:13px}.admin-shell-tools{gap:7px}.admin-shell-identity{font-size:11px}.admin-shell-control{min-width:36px;min-height:36px;padding:8px}.admin-workspace .page{padding-block:20px 27px}.admin-workspace .page-heading{margin-bottom:17px}.admin-workspace .page-heading h1{font-size:25px}.admin-workspace .admin-layout{display:block}.admin-workspace .admin-nav{position:static;flex-direction:row;align-items:center;overflow-x:auto;overflow-y:hidden;flex-wrap:nowrap;max-height:none;padding:7px;border-radius:9px;gap:4px;margin-bottom:20px;scrollbar-width:thin;scrollbar-color:#648d9c #183247}.admin-nav-label{display:none}.admin-workspace .admin-nav button{flex:0 0 auto;font-size:11px;min-height:38px;padding:8px 11px;white-space:nowrap}.admin-workspace .admin-nav button.active{box-shadow:inset 0 -2px #94dfc7}.admin-workspace .admin-metrics{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.admin-workspace .admin-metric{padding:14px}.admin-workspace .admin-metric b{font-size:22px}.admin-workspace .admin-metric small{font-size:10px}.admin-metric p{font-size:9px}.admin-metric>div>span{min-width:27px;height:27px}.admin-workspace .admin-toolbar h2{font-size:19px}.admin-workspace .admin-toolbar{flex-wrap:wrap;gap:9px}.admin-workspace .admin-toolbar>div{gap:6px}.admin-workspace .chart{padding:18px 15px}.admin-workspace .chart h3{font-size:14px}.admin-workspace .chart-bars{height:155px;gap:12px;margin-top:32px}.admin-workspace .chart-bars b{font-size:8px}.admin-workspace .admin-form,.admin-workspace .form-section{padding:17px}.admin-workspace .admin-form .form-grid{grid-template-columns:1fr}.admin-workspace input,.admin-workspace textarea,.admin-workspace select{font-size:16px}.admin-workspace .data-table td select{font-size:13px}.admin-workspace .data-table{min-width:580px}.admin-workspace .admin-shell-brand{font-size:24px}.admin-workspace .pagination button{min-width:38px;min-height:38px}}

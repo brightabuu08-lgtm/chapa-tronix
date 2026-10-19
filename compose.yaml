@@ -1,0 +1,82 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: chapa_migrator
+      POSTGRES_PASSWORD: ${POSTGRES_BOOTSTRAP_PASSWORD:?Set bootstrap password}
+      POSTGRES_RUNTIME_PASSWORD: ${POSTGRES_RUNTIME_PASSWORD:?Set runtime password}
+      POSTGRES_DB: chapa
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./docker/10-runtime-role.sh:/docker-entrypoint-initdb.d/10-runtime-role.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U chapa_migrator -d chapa"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+  migrate:
+    build:
+      context: .
+      target: worker
+    environment:
+      DATABASE_URL: ${DATABASE_MIGRATION_URL:?Set migration URL with encoded credentials}
+    command: ["node", "scripts/docker-migrate.mjs"]
+    depends_on:
+      db:
+        condition: service_healthy
+  web:
+    build: .
+    environment: &runtime_environment
+      APP_URL: ${APP_URL:?Set APP_URL}
+      TRUSTED_ORIGINS: ${TRUSTED_ORIGINS:-}
+      ORDER_ACCESS_SECRET: ${ORDER_ACCESS_SECRET:?Set order access secret}
+      AUTH_REQUIRE_EMAIL_VERIFICATION: ${AUTH_REQUIRE_EMAIL_VERIFICATION:-true}
+      FLUTTERWAVE_SECRET_KEY: ${FLUTTERWAVE_SECRET_KEY:-}
+      FLUTTERWAVE_WEBHOOK_SECRET: ${FLUTTERWAVE_WEBHOOK_SECRET:-}
+      FLUTTERWAVE_SIGNATURE_MODE: ${FLUTTERWAVE_SIGNATURE_MODE:-verif-hash}
+      BREVO_API_KEY: ${BREVO_API_KEY:-}
+      MAIL_FROM_NAME: ${MAIL_FROM_NAME:-chapa tronix}
+      MAIL_REPLY_TO: ${MAIL_REPLY_TO:-}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      MAIL_FROM: ${MAIL_FROM:-}
+      SMS_PROVIDER: ${SMS_PROVIDER:-disabled}
+      SMS_SEND_ENABLED: ${SMS_SEND_ENABLED:-false}
+      SMS_SENDER_ID: ${SMS_SENDER_ID:-CHAPATRONIX}
+      BEEM_API_KEY: ${BEEM_API_KEY:-}
+      BEEM_SECRET_KEY: ${BEEM_SECRET_KEY:-}
+      SMS_CUSTOM_URL: ${SMS_CUSTOM_URL:-}
+      SMS_CUSTOM_API_KEY: ${SMS_CUSTOM_API_KEY:-}
+      SMS_CUSTOM_WEBHOOK_SECRET: ${SMS_CUSTOM_WEBHOOK_SECRET:-}
+      S3_ENDPOINT: ${S3_ENDPOINT:-}
+      S3_BUCKET: ${S3_BUCKET:-}
+      S3_REGION: ${S3_REGION:-auto}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-}
+      S3_PUBLIC_URL: ${S3_PUBLIC_URL:-}
+      COD_CONFIRMATION_MINUTES: ${COD_CONFIRMATION_MINUTES:-120}
+      ORDER_RESERVATION_MINUTES: ${ORDER_RESERVATION_MINUTES:-60}
+      DATABASE_URL: ${DATABASE_RUNTIME_URL:?Set runtime URL for chapa_runtime}
+      SELLING_MODE: ${SELLING_MODE:-closed}
+      MAIL_PROVIDER: ${MAIL_PROVIDER:-disabled}
+      PAYMENT_PROVIDER: ${PAYMENT_PROVIDER:-disabled}
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - product_uploads:/app/.uploads
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+  worker:
+    build:
+      context: .
+      target: worker
+    environment: *runtime_environment
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+volumes:
+  pgdata:
+  product_uploads:

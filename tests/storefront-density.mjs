@@ -1,0 +1,35 @@
+import assert from 'node:assert/strict';
+import {randomUUID,createHash} from 'node:crypto';
+import {chromium,expect as baseExpect} from '@playwright/test';
+import {PrismaClient} from '../generated/prisma-v6/index.js';
+const expect=baseExpect.configure({timeout:45000}),base=process.env.TEST_BASE_URL,url=new URL(process.env.DATABASE_URL||'');
+if(url.pathname!=='/chapa_tronix_test'||!base?.endsWith(':3126'))throw new Error('Owned isolated test server required.');
+const db=new PrismaClient(),id='density-'+randomUUID(),prefix='Density '+id,token=randomUUID();let browser,checks=0;
+const pass=name=>{checks++;console.log('PASS '+name);};
+try{
+ await db.category.create({data:{id,name:prefix,nameEn:prefix}});
+ const user=await db.user.create({data:{name:'Density fixture',email:id+'@example.test',role:'CUSTOMER',passwordHash:'fixture-no-login',emailVerifiedAt:new Date()}});
+ await db.session.create({data:{id:createHash('sha256').update(token).digest('hex'),userId:user.id,expiresAt:new Date(Date.now()+3600000)}});
+ await db.product.createMany({data:Array.from({length:25},(_,i)=>({id:id+'-'+i,slug:id+'-'+i,sku:id+'-'+i,name:prefix+' component '+String(i).padStart(2,'0'),categoryId:id,brand:'Fixture',price:15000+i*100,stock:5,voltage:'5V',interface:'GPIO',description:'Test database fixture',descriptionEn:'Test database fixture',compatibility:'Fixture only',images:['/images/esp32.jpg'],specs:{voltage:'5V'}}))});
+ const response=await fetch(base+'/api/catalog?'+new URLSearchParams({q:prefix,page:'1',pageSize:'24'}),{headers:{Cookie:'ct_session='+token}}),data=await response.json();assert.equal(response.status,200);assert.equal(data.products.length,24);assert.equal(data.total,25);assert.equal(data.hasMore,true);pass('server returns 24 matching products and retains the next page');
+ browser=await chromium.launch({channel:process.env.CI?undefined:'chrome',headless:true});
+ const context=await browser.newContext();await context.addCookies([{name:'ct_session',value:token,url:base}]);await context.addInitScript(()=>localStorage.setItem('ct-cookie','yes'));
+ const page=await context.newPage();page.setDefaultTimeout(45000);page.setDefaultNavigationTimeout(120000);const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ await page.goto(base+'/shop?q='+encodeURIComponent(prefix));await expect(page.locator('.catalog-grid .product-card')).toHaveCount(24);await expect(page.locator('.pagination button')).toHaveCount(2);pass('catalog renders 24 cards before asking for another page');
+ for(const width of [360,390,768,1440]){
+  await page.setViewportSize({width,height:1000});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'No overflow at '+width);
+  const columns=await page.locator('.catalog-grid').evaluate(node=>getComputedStyle(node).gridTemplateColumns.split(' ').length);assert.equal(columns,width<768?2:width===768?3:4);
+  if(!process.env.CI&&(width===390||width===1440))await page.screenshot({path:'.local-db/density-shop-'+width+'.png'});
+ }pass('compact cards fit two mobile columns and four wide desktop columns without overflow');
+ await page.locator('.pagination button').nth(1).click();await expect(page.locator('.catalog-grid .product-card')).toHaveCount(1);await expect(page.locator('.pagination button').nth(1)).toHaveAttribute('aria-current','page');pass('page two contains the remaining product rather than losing records');
+ await page.locator('.pagination button').nth(0).click();await expect(page.locator('.catalog-grid .product-card')).toHaveCount(24);
+ const add=page.locator('.catalog-grid .product-card .add-button');await add.nth(0).click();await add.nth(1).click();await expect(add.nth(0)).toHaveClass(/in-cart/);await expect(add.nth(1)).toHaveClass(/in-cart/);await add.nth(0).click();await expect(add.nth(0)).not.toHaveClass(/in-cart/);await expect(add.nth(1)).toHaveClass(/in-cart/);pass('cart selection remains per product and a second click removes only that product');
+ assert.ok((await page.locator('.store-notices').boundingBox()).height<140);await expect(page.locator('.store-notices input[type=email]')).toBeHidden();await page.locator('.store-notice-updates summary').click();await expect(page.locator('.store-notices input[type=email]')).toBeVisible();pass('notices stay compact and email signup opens only when requested');
+ await page.getByRole('button',{name:'Ficha taarifa ya email',exact:true}).click();await page.getByRole('button',{name:'Ficha taarifa ya mawazo',exact:true}).click();await expect(page.locator('.store-notices')).toHaveCount(0);await page.reload();await expect(page.locator('.store-notices')).toHaveCount(0);pass('both notices can be dismissed and stay dismissed for the browser session');
+ await page.locator('.catalog-search input').fill(prefix+' component 00');await expect(page.locator('.catalog-grid .product-card')).toHaveCount(1);await expect(page.locator('.catalog-grid h3')).toHaveText(prefix+' component 00');await expect(page.locator('.pagination')).toHaveCount(0);pass('one-result searches hide pagination');
+ const guest=await browser.newContext(),landing=await guest.newPage();landing.setDefaultTimeout(45000);landing.setDefaultNavigationTimeout(120000);await landing.goto(base+'/learn');await expect(landing.locator('.robot-studio.ready canvas')).toBeVisible();
+ const canvas=landing.locator('.robot-studio canvas');await expect(landing.getByRole('button',{name:/Sitisha animation|Pause animation/})).toBeVisible();const movingImage=await canvas.evaluate(node=>node.toDataURL());await landing.waitForTimeout(350);assert.notEqual(await canvas.evaluate(node=>node.toDataURL()),movingImage);pass('learning hub hosts a compact moving robotics demonstration with pause control');
+ await landing.emulateMedia({reducedMotion:'reduce'});await expect(canvas).toHaveAttribute('data-motion','paused');const reducedImage=await canvas.evaluate(node=>node.toDataURL());await landing.waitForTimeout(220);assert.equal(await canvas.evaluate(node=>node.toDataURL()),reducedImage);pass('reduced-motion preference renders a stable 3D pose');
+ await landing.goto(base+'/account');assert.equal(await landing.locator('.robot-studio').count(),0);for(const width of [360,390,768,1440]){await landing.setViewportSize({width,height:1000});assert.ok(await landing.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));await expect(landing.locator('.login-submit')).toBeVisible();if(!process.env.CI&&(width===390||width===1440))await landing.screenshot({path:'.local-db/density-landing-'+width+'.png',fullPage:true});}pass('compact login fits mobile, tablet and desktop without a robot background');
+ assert.deepEqual(errors,[]);console.log(JSON.stringify({storefrontDensityChecks:checks,result:'passed',viewports:[360,390,768,1440],pageSize:24,businessWrites:0,runtimeErrors:errors.length}));await guest.close();await context.close();
+}finally{if(browser)await browser.close();await db.product.updateMany({where:{categoryId:id},data:{active:false}});await db.category.updateMany({where:{id},data:{active:false}});await db.$disconnect();}

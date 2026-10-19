@@ -1,0 +1,11 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {checkoutSchema,deliveryFee,totals,registerSchema,normalizePhone,canTransition,csvCell} from '../lib/commerce';
+test('cart totals use integer TZS and floor coupon discounts',()=>{assert.deepEqual(totals([{quantity:2,unitPrice:35000},{quantity:1,unitPrice:6500}],5000,10),{subtotal:76500,shipping:5000,discount:7650,total:73850})});
+test('delivery is free for pickup and regional rates differ',()=>{assert.equal(deliveryFee('Mwanza','pickup'),0);assert.equal(deliveryFee('Dar es Salaam','delivery'),5000);assert.equal(deliveryFee('Mwanza','delivery'),10000)});
+const valid={name:'Test Customer',email:'test@example.com',phone:'0712345678',region:'Dar es Salaam',street:'Kigamboni test address',delivery:'delivery',method:'cod',items:[{productId:'arduino-uno-r3',quantity:1}],idempotencyKey:'c256d455-29b4-45d2-80af-b2030d7fcd54'};
+test('checkout rejects fractional, negative and empty quantities',()=>{for(const q of [-1,0,1.5,101])assert.equal(checkoutSchema.safeParse({...valid,items:[{productId:'x',quantity:q}]}).success,false);assert.equal(checkoutSchema.safeParse({...valid,items:[]}).success,false)});
+test('checkout validates phone and normalizes it',()=>{assert.equal(checkoutSchema.parse(valid).phone,'+255712345678');assert.equal(checkoutSchema.safeParse({...valid,phone:'123'}).success,false)});
+test('auth rejects weak passwords and normalizes email',()=>{assert.equal(registerSchema.safeParse({name:'Test',email:'a@example.com',password:'short'}).success,false);assert.equal(registerSchema.parse({name:'Test',email:'A@EXAMPLE.COM',password:'a-long-password-123'}).email,'a@example.com');assert.equal(normalizePhone('0712345678'),'+255712345678')});
+test('order state transitions cannot bypass payment or undo terminal states',()=>{assert.equal(canTransition('PENDING','SHIPPED','mobile'),false);assert.equal(canTransition('PENDING','PACKED','cod'),true);assert.equal(canTransition('PENDING','PACKED','mobile'),false);assert.equal(canTransition('CANCELLED','PAID','cod'),false)});
+test('CSV export neutralizes spreadsheet formula injection',()=>{assert.equal(csvCell('=SUM(A1:A9)'),"\"'=SUM(A1:A9)\"");assert.equal(csvCell('a"b'),'"a""b"')});

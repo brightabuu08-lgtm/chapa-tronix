@@ -1,0 +1,5 @@
+'use client';
+import {MailCheck} from 'lucide-react';
+import {useShop,AsyncForm} from '../Store';
+import {clearCheckoutSession} from '@/lib/checkout-attempt';
+export default function VerifyAccess(){const {user,t,api,notify,setUser}=useShop();return <section className="container page"><div className="auth-card"><MailCheck size={32} aria-hidden="true"/><h1>{t('Thibitisha barua pepe yako','Verify your email')}</h1><p>{t('Tumekuandalia maelekezo ya kuthibitisha akaunti. Fungua kiungo kwenye barua pepe ili uendelee dukani.','Open the verification link sent to your email to continue to the store.')}</p><p>{user?.email}</p><AsyncForm onSubmit={async()=>{await api('auth/recovery',{action:'request-verify'});notify(t('Ombi limepokelewa. Angalia inbox na spam.','Request received. Check your inbox and spam.'));}}><button className="button">{t('Tuma maelekezo tena','Resend instructions')}</button></AsyncForm><button type="button" className="text-button" onClick={async()=>{try{await api('auth/logout',{});clearCheckoutSession();setUser(null);}catch(error){notify((error as Error).message);}}}>{t('Toka kwenye akaunti','Sign out')}</button></div></section>;}

@@ -1,0 +1,48 @@
+import assert from 'node:assert/strict';
+import {randomUUID,createHmac} from 'node:crypto';
+import {db} from '../lib/db';
+import {Prisma} from '../generated/prisma-v6';
+import {composeSms,saveSmsSettings,orderSmsTx,processSms,reconcileSms,applySmsReceipt,smsAction} from '../lib/sms';
+import {orderEmailTx} from '../lib/mail';
+import {POST} from '../app/api/sms/webhook/route';
+const url=new URL(process.env.DATABASE_URL||'');if(url.pathname!=='/chapa_tronix_test'||!['127.0.0.1','localhost'].includes(url.hostname))throw new Error('Use isolated local test DB only.');
+const originalEnv={...process.env},originalFetch=globalThis.fetch,uid=randomUUID(),actor='sms-fixture-'+uid,recipient='0712345678',now=Date.now();let checks=0;
+const pass=(label:string)=>{checks++;console.log('PASS '+label);};
+const input=(text='Huduma ya majaribio.')=>({requestId:randomUUID(),recipient,text,acknowledge:true});
+async function oldest(id:string){await db.smsJob.update({where:{id},data:{createdAt:new Date(1),nextAttemptAt:new Date(1)}});}
+const previous=await db.storeSettings.findUnique({where:{id:'sms'}});
+try{
+ globalThis.fetch=async()=>{throw new Error('Network disabled in domain SMS fixtures');};
+ process.env.SMS_PROVIDER='mock';process.env.SMS_SEND_ENABLED='false';process.env.SMS_SENDER_ID='CHAPATRONIX';
+ await assert.rejects(composeSms(input(),actor));pass('disabled SMS refuses to queue manual sends');
+ process.env.SMS_SEND_ENABLED='true';
+ const payload=input(),both=await Promise.all([composeSms(payload,actor),composeSms(payload,actor)]);assert.equal(both[0].id,both[1].id);assert.equal(await db.smsJob.count({where:{dedupeKey:both[0].dedupeKey}}),1);await assert.rejects(composeSms({...payload,text:'Changed payload.'},actor),/details changed/);pass('concurrent duplicate compose creates one job and changed payload conflicts');
+ await oldest(both[0].id);await Promise.all([processSms(),processSms()]);assert.equal((await db.smsJob.findUniqueOrThrow({where:{id:both[0].id}})).attempts,1);assert.equal((await db.smsJob.findUniqueOrThrow({where:{id:both[0].id}})).status,'ACCEPTED');pass('two worker passes claim a queued job once and acceptance is not delivery');
+ const expired=await composeSms(input(),actor);await db.smsJob.update({where:{id:expired.id},data:{expiresAt:new Date(0),createdAt:new Date(1)}});await processSms();assert.equal((await db.smsJob.findUniqueOrThrow({where:{id:expired.id}})).status,'CANCELLED');pass('expired queue entry never submits');
+ const cancel=await composeSms(input(),actor);await smsAction(cancel.id,'cancel',actor);await processSms();assert.equal((await db.smsJob.findUniqueOrThrow({where:{id:cancel.id}})).attempts,0);await assert.rejects(smsAction(both[0].id,'cancel',actor));pass('admin cancellation only affects queued jobs and cannot recall accepted messages');
+ const crash=await composeSms(input(),actor);await db.smsJob.update({where:{id:crash.id},data:{status:'SENDING',lockedAt:new Date(0),attempts:1}});await processSms();assert.equal((await db.smsJob.findUniqueOrThrow({where:{id:crash.id}})).status,'UNCERTAIN');await assert.rejects(smsAction(crash.id,'retry',actor));pass('worker crash becomes uncertain and cannot be blindly retried');
+ const order=await db.order.create({data:{number:'SMS-'+uid,idempotencyKey:randomUUID(),name:'SMS fixture',email:uid+'@example.test',phone:recipient,region:'Dar es Salaam',street:'Isolated database only',delivery:'pickup',method:'cod',subtotal:1000,shipping:0,total:1000}});
+ await saveSmsSettings({orderNotifications:true,language:'sw',statuses:['PENDING','PACKED']},actor);
+ await db.$transaction(async tx=>{await orderEmailTx(tx,order);await orderEmailTx(tx,order);});assert.equal(await db.smsJob.count({where:{orderId:order.id}}),1);assert.equal(await db.emailJob.count({where:{dedupeKey:'order:'+order.number+':PENDING'}}),1);pass('existing transactional order notification queues one SMS and one email per event');
+ await db.order.update({where:{id:order.id},data:{status:'PACKED'}});await processSms();assert.equal((await db.smsJob.findFirstOrThrow({where:{orderId:order.id}})).status,'CANCELLED');pass('superseded order SMS is cancelled before dispatch');
+ await assert.rejects(db.$transaction(async tx=>{await orderSmsTx(tx,{...order,status:'PACKED'});throw new Error('rollback fixture');}));assert.equal(await db.smsJob.count({where:{dedupeKey:'order:'+order.id+':PACKED'}}),0);pass('rolled-back order transaction leaves no outgoing SMS');
+ await saveSmsSettings({orderNotifications:false,language:'sw',statuses:['PACKED']},actor);await db.$transaction(tx=>orderSmsTx(tx,{...order,status:'PACKED'}));assert.equal(await db.smsJob.count({where:{dedupeKey:'order:'+order.id+':PACKED'}}),0);pass('order notifications remain opt-in independently of the transport');
+ process.env.SMS_PROVIDER='custom';process.env.SMS_CUSTOM_URL='https://sms.example.test/api';process.env.SMS_CUSTOM_API_KEY='test-only-key';process.env.SMS_CUSTOM_WEBHOOK_SECRET='test-only-signed-callback-32-characters';
+ const uncertain=await composeSms(input(),actor);await oldest(uncertain.id);let sends=0;
+ globalThis.fetch=async()=>{sends++;throw new Error('response lost');};await processSms();const firstSends=sends;await processSms();assert.equal(sends,firstSends);assert.equal((await db.smsJob.findUniqueOrThrow({where:{id:uncertain.id}})).status,'UNCERTAIN');pass('lost provider response does not cause a duplicate SMS submission');
+ const receipt={clientReference:uncertain.id,messageId:'custom-'+uid,status:'DELIVERED' as const,eventId:'event-'+uid};
+ await oldest(uncertain.id);globalThis.fetch=async(request)=>{assert.match(String(request),/messages\/by-client-reference\//);return Response.json(receipt);};await reconcileSms();assert.equal((await db.smsJob.findUniqueOrThrow({where:{id:uncertain.id}})).status,'DELIVERED');pass('custom provider lookup reconciles a lost send response without resending');
+ const results=await Promise.all([applySmsReceipt({...receipt,eventId:'duplicate-'+uid}),applySmsReceipt({...receipt,eventId:'duplicate-'+uid})]);assert.ok(results.every(v=>v.applied===false));assert.equal(await db.smsEvent.count({where:{jobId:uncertain.id,providerEventId:'duplicate-'+uid}}),1);await applySmsReceipt({...receipt,eventId:'stale-'+uid,status:'ACCEPTED'});assert.equal((await db.smsJob.findUniqueOrThrow({where:{id:uncertain.id}})).status,'DELIVERED');await assert.rejects(applySmsReceipt({...receipt,messageId:'wrong',eventId:'wrong-'+uid}),/reference mismatch/);pass('duplicate, out-of-order and wrong-reference receipts cannot corrupt delivery state');
+ const early=await composeSms(input(),actor);await applySmsReceipt({...receipt,clientReference:early.id,messageId:'early-'+uid,eventId:'early-'+uid});await processSms();assert.equal((await db.smsJob.findUniqueOrThrow({where:{id:early.id}})).attempts,0);pass('receipt arriving before local acceptance is preserved');
+ const reject=await composeSms(input(),actor);await oldest(reject.id);globalThis.fetch=async()=>Response.json({},{status:400});await processSms();assert.equal((await db.smsJob.findUniqueOrThrow({where:{id:reject.id}})).status,'FAILED');await smsAction(reject.id,'retry',actor);await oldest(reject.id);globalThis.fetch=async()=>Response.json({status:'ACCEPTED',messageId:'retry-'+uid});await processSms();assert.equal((await db.smsJob.findUniqueOrThrow({where:{id:reject.id}})).status,'ACCEPTED');assert.equal((await db.smsJob.findUniqueOrThrow({where:{id:reject.id}})).attempts,2);pass('only a definitive rejected submission can be retried under its original key');
+ const throttled=await composeSms(input(),actor);await oldest(throttled.id);globalThis.fetch=async()=>Response.json({},{status:429});await processSms();const pending=await db.smsJob.findUniqueOrThrow({where:{id:throttled.id}});assert.equal(pending.status,'QUEUED');assert.ok(pending.nextAttemptAt.getTime()>Date.now());await smsAction(throttled.id,'cancel',actor);pass('provider throttle schedules a bounded retry instead of immediate flooding');
+ const pinned=await composeSms(input(),actor);process.env.SMS_PROVIDER='mock';await processSms();assert.equal((await db.smsJob.findUniqueOrThrow({where:{id:pinned.id}})).attempts,0);pass('switching providers never routes an existing job to a different provider');
+ process.env.SMS_PROVIDER='custom';const timestamp=String(Math.floor(Date.now()/1000));const raw=JSON.stringify({...receipt,eventId:'http-'+uid});const signature='sha256='+createHmac('sha256',process.env.SMS_CUSTOM_WEBHOOK_SECRET).update(timestamp+'.'+raw).digest('hex');
+ const req=(body:string,signatureValue=signature)=>new Request('http://localhost/api/sms/webhook',{method:'POST',headers:{'content-type':'application/json','x-sms-timestamp':timestamp,'x-sms-signature':signatureValue},body});
+ assert.equal((await POST(req(raw,'bad'))).status,401);assert.equal((await POST(req('x'.repeat(16385)))).status,413);assert.equal((await POST(req(raw))).status,200);assert.equal((await POST(req(raw))).status,200);pass('actual callback route rejects bad auth/oversized bodies and safely acknowledges duplicates');
+ console.log(JSON.stringify({smsIntegrationChecks:checks,result:'passed',database:'isolated test DB',liveRequests:0}));
+}finally{
+ globalThis.fetch=originalFetch;for(const key of Object.keys(process.env))if(!(key in originalEnv))delete process.env[key];Object.assign(process.env,originalEnv);
+ if(previous)await db.storeSettings.upsert({where:{id:'sms'},create:{id:'sms',data:previous.data===null?Prisma.JsonNull:previous.data as Prisma.InputJsonValue},update:{data:previous.data===null?Prisma.JsonNull:previous.data as Prisma.InputJsonValue}});else await db.storeSettings.deleteMany({where:{id:'sms'}});
+ await db.$disconnect();
+}

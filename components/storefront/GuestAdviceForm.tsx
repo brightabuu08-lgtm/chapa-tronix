@@ -1,0 +1,8 @@
+'use client';
+import {useState} from 'react';
+import {Send,Check} from 'lucide-react';
+import {AsyncForm,useShop} from '../Store';
+export default function GuestAdviceForm(){
+ const {t,api}=useShop(),[sent,setSent]=useState(false);
+ return sent?<div className="panel" role="status"><Check size={24}/><h2>{t('Swali lako limepokelewa','Your question has been received')}</h2><p>{t('Timu itatumia mawasiliano uliyoweka kukujibu.','The team will use your contact details to respond.')}</p><button type="button" className="button secondary" onClick={()=>setSent(false)}>{t('Tuma swali jingine','Send another question')}</button></div>:<AsyncForm className="panel guest-advice-form" onSubmit={async data=>{await api('quotes',{name:data.name,email:data.email,phone:data.phone,organization:'Ushauri wa vifaa / Parts advice',details:data.details});setSent(true);}}><div className="form-grid"><label>{t('Jina lako','Your name')}<input name="name" required minLength={2} maxLength={100} autoComplete="name"/></label><label>{t('Namba ya simu','Phone number')}<input name="phone" required type="tel" autoComplete="tel" placeholder="0712345678" pattern="(\+255|0)[67][0-9]{8}"/></label></div><label>{t('Barua pepe','Email')}<input name="email" type="email" required autoComplete="email"/></label><label>{t('Swali lako','Your question')}<textarea name="details" required minLength={15} maxLength={2000} rows={4} placeholder={t('Eleza kifaa au mradi unaohitaji msaada.','Describe the component or project you need help with.')}/></label><button className="button"><Send size={17}/>{t('Tuma swali','Send question')}</button></AsyncForm>;
+}

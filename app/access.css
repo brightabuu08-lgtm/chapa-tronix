@@ -1,0 +1,16 @@
+body:has(.access-shell){padding-bottom:0}
+.access-shell{min-height:100dvh;display:flex;flex-direction:column;background:#f7f9fa}
+.access-shell-header{display:flex;align-items:center;justify-content:space-between;gap:14px;min-height:96px;padding-block:18px}
+.access-shell-header .brand{font-size:27px}
+.access-shell-header .brand-mark{color:#c45112;background:#fff0e6}
+.access-shell main{flex:1;min-width:0}
+.access-shell .page{padding-block:24px 42px}
+.access-shell .page-heading{max-width:600px;margin-inline:auto;text-align:center;margin-bottom:25px}
+.access-shell .page-heading h1{font-size:clamp(27px,4vw,38px)}
+.access-shell .auth-card{background:#fff}
+.access-shell .auth-card h1{font-size:29px}
+.access-shell .auth-card p{margin-block:14px;font-size:14px}
+.access-shell .auth-card>.text-button{display:block;margin-top:18px}
+.access-shell-footer{display:flex;justify-content:center;flex-wrap:wrap;gap:24px;padding-block:22px;font-size:12px;color:var(--muted)}
+.access-shell~.toast{bottom:20px}
+@media(max-width:600px){.access-shell-header{min-height:82px}.access-shell-header .brand{font-size:23px}.access-shell-header .brand small{font-size:8px}.access-shell-header .brand-mark{width:35px;height:38px}.access-shell .page{padding-top:15px}}

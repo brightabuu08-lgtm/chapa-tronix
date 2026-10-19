@@ -1,0 +1,92 @@
+import {chromium} from '@playwright/test';
+import {readFile,mkdir} from 'node:fs/promises';
+import path from 'node:path';
+import assert from 'node:assert/strict';
+const root=path.resolve('dist');
+const browser=await chromium.launch({channel:'chrome',headless:true});
+const context=await browser.newContext();
+await context.route('http://chapa.test/**',async route=>{
+ const url=new URL(route.request().url());
+ let local=path.resolve(root,'.'+url.pathname);
+ if(!local.startsWith(root+path.sep))local=path.join(root,'index.html');
+ let buffer;try{buffer=await readFile(local)}catch{buffer=await readFile(path.join(root,'index.html'));local='index.html'}
+ const ext=path.extname(local);
+ const types={'.html':'text/html','.js':'application/javascript','.css':'text/css','.jpg':'image/jpeg','.svg':'image/svg+xml','.woff2':'font/woff2'};
+ await route.fulfill({status:200,contentType:types[ext]||'application/octet-stream',body:buffer});
+});
+await mkdir('test-results/refresh',{recursive:true});
+const page=await context.newPage();await page.setViewportSize({width:1440,height:1000});
+const errors=[];page.on('pageerror',e=>errors.push(e.message));
+await page.goto('http://chapa.test/');await page.getByRole('heading',{level:1}).waitFor();
+await page.getByRole('button',{name:'Nimeelewa',exact:true}).click();
+assert.equal(await page.locator('.market-top').count(),0);
+await page.locator('.sidebar-toggle > summary').click();
+assert.equal(await page.locator('.sidebar-toggle[open]').count(),1);
+assert.equal(await page.locator('.market-drawer a[href^="/category/"]').count(),0);
+assert.equal(await page.locator('.drawer-heading small').textContent(),'Where Intelligence Meets Mechanics');
+await page.keyboard.press('Escape');
+await page.locator('.market-category-menu summary').click();
+assert.equal(await page.locator('.market-category-menu[open] .category-dropdown a').count(),8);
+assert.equal(await page.locator('.sidebar-toggle[open]').count(),0);
+await page.keyboard.press('Escape');
+assert.equal(await page.locator('.market-category-menu[open]').count(),0);
+await page.screenshot({path:'test-results/refresh/home-desktop.png',fullPage:true});
+assert.equal(await page.locator('.market-category-list a').count(),9);
+assert.equal(await page.locator('.market-products').last().locator('.product-card').count(),10);
+await page.locator('.market-search select').selectOption('boards');
+await page.locator('.market-search input').fill('ESP32');
+await page.locator('.market-search').press('Enter');
+assert.equal(await page.locator('.catalog-grid .product-card').count(),1);
+await page.locator('.catalog-grid .product-card h3').click();
+await page.getByRole('button',{name:'Weka kikapuni',exact:true}).click();
+await page.locator('.market-account a[aria-label="Kikapu"]').click();
+assert.ok(await page.getByRole('heading',{name:'ESP32-DevKitC',exact:true}).count());
+await page.getByRole('button',{name:'Switch language'}).click();
+assert.equal(await page.locator('html').getAttribute('lang'),'en');
+await page.goto('http://chapa.test/');await page.getByRole('heading',{level:1}).waitFor();
+assert.equal(await page.locator('.market-account .market-icon b').textContent(),'1');
+await page.setViewportSize({width:360,height:800});
+await page.locator('.market-category-menu summary').click();
+assert.equal(await page.locator('.category-dropdown').isVisible(),true);
+await page.locator('.category-dropdown a[href="/category/boards"]').click();
+assert.equal(new URL(page.url()).pathname,'/category/boards');
+assert.equal(await page.locator('.market-category-menu[open]').count(),0);
+await page.goto('http://chapa.test/');await page.getByRole('heading',{level:1}).waitFor();
+await page.screenshot({path:'test-results/refresh/home-mobile.png',fullPage:true});
+assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'no mobile overflow');
+await page.locator('.sidebar-toggle > summary').click();
+assert.equal(await page.locator('.sidebar-toggle[open]').count(),1);
+await page.keyboard.press('Escape');
+assert.equal(await page.locator('.sidebar-toggle[open]').count(),0);
+await page.goto('http://chapa.test/shop');await page.locator('.catalog-grid').waitFor();
+await page.getByRole('button',{name:'Filter',exact:true}).click();
+assert.equal(await page.locator('.filters.show').count(),1);
+assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'no catalog overflow');
+await page.getByRole('button',{name:'Switch language'}).click();
+await page.locator('.filter-help a').click();
+assert.equal(new URL(page.url()).pathname,'/chat');
+await page.getByRole('heading',{name:'Zungumza na muuzaji',exact:true}).waitFor();
+assert.equal(await page.locator('.chat-compose button').isDisabled(),true);
+assert.equal(await page.locator('.chat-compose textarea').isDisabled(),true);
+assert.ok(await page.getByText('Huduma ya mazungumzo bado haijawashwa',{exact:false}).count());
+assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'no chat overflow');
+assert.equal(await page.locator('.market-header').getByText('Kigamboni',{exact:false}).count(),0);
+assert.equal(await page.locator('footer .location').count(),1);
+assert.equal(await page.locator('a[href="/ideas"]').count(),1);
+const routes=['/','/shop','/category/boards','/product/arduino-uno-r3','/cart','/checkout','/account','/wishlist','/quote','/ideas','/chat','/learn','/learn/arduino-mwanzo','/about','/contact','/faq','/privacy','/terms','/returns','/shipping','/admin','/missing-page'];
+for(const width of [360,1440]){
+ await page.setViewportSize({width,height:900});
+ for(const language of ['sw','en']){
+  await page.evaluate(lang=>localStorage.setItem('ct-lang',lang),language);
+  for(const route of routes){
+   await page.goto('http://chapa.test'+route);await page.locator('#main').waitFor();
+   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`${route} ${language} ${width}: no overflow`);
+   assert.equal(await page.locator('.market-category-menu summary').textContent(),language==='en'?'Categories':'Makundi ya bidhaa');
+   assert.equal(await page.locator('.market-search select option').first().textContent(),language==='en'?'Products':'Bidhaa');
+   assert.equal(await page.locator('.market-category-menu summary svg').count(),1);
+  }
+ }
+}
+assert.deepEqual(errors,[]);
+console.log(JSON.stringify({coreChecks:30,routeVisits:88,viewports:[360,1440],languages:['sw','en'],method:'local build assets intercepted; no external or localhost sockets',result:'passed'}));
+await browser.close();

@@ -1,0 +1,45 @@
+node_modules/
+.next/
+dist/
+.env
+.env.local
+.env*
+!.env.example
+*.tsbuildinfo
+.sites-runtime/
+test-results/
+playwright-report/
+
+.local-db/
+.local-server/
+.env.test
+
+
+.next-test/
+
+.uploads/
+.next-production-check/
+.next-ci/
+.next*/
+
+generated/
+
+# Machine-specific hosting metadata and generated Next.js declarations
+.openai/
+next-env.d.ts
+
+# Local audit outputs may include account or order fixtures
+review/**/*.log
+review/**/*.json
+review/**/*.zip
+review/**/*.patch
+review/**/*.sha256
+
+# Private credentials, exports and database backups
+*.pem
+*.key
+*.p12
+*.pfx
+*.dump
+*.sql.gz
+backups/

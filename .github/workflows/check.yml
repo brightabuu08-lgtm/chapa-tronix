@@ -1,0 +1,56 @@
+name: Check storefront
+on: [push, pull_request]
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: ci_bootstrap
+          POSTGRES_PASSWORD: ci-bootstrap-only
+          POSTGRES_DB: chapa_tronix_test
+        ports:
+          - 55437:5432
+        options: >-
+          --health-cmd "pg_isready -U ci_bootstrap -d chapa_tronix_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://chapa_tronix_test:ci-test-only@127.0.0.1:55437/chapa_tronix_test?schema=public
+      TEST_DATABASE_URL: postgresql://chapa_tronix_test:ci-test-only@127.0.0.1:55437/chapa_tronix_test?schema=public
+      MAIL_PROVIDER: disabled
+      PAYMENT_PROVIDER: disabled
+      SELLING_MODE: test
+      ORDER_ACCESS_SECRET: TEST_ONLY_ORDER_ACCESS_SECRET_32_CHARACTERS_MINIMUM
+      ADMIN_EMAIL: admin@example.test
+      ADMIN_PASSWORD: CI-Test-Only-Password-123456
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Create least-privileged test database owner
+        env:
+          PGPASSWORD: ci-bootstrap-only
+        run: |
+          psql -h 127.0.0.1 -p 55437 -U ci_bootstrap -d chapa_tronix_test -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE ROLE chapa_tronix_test LOGIN PASSWORD 'ci-test-only' NOSUPERUSER NOCREATEDB NOCREATEROLE;
+          ALTER DATABASE chapa_tronix_test OWNER TO chapa_tronix_test;
+          GRANT USAGE, CREATE ON SCHEMA public TO chapa_tronix_test;
+          SQL
+      - run: npm ci
+      - run: npm run db:generate
+      - run: npm run db:migrate
+      - run: npm run db:seed
+      - run: node node_modules/prisma/build/index.js validate
+      - run: npm run lint
+      - run: npm test
+      - run: npm run test:review
+      - run: npm run typecheck
+      - run: npm run build
+      - run: npm run preview:build
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:sms
+      - run: npm run test:access

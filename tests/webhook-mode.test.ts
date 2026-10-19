@@ -1,0 +1,5 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {createHmac} from 'node:crypto';
+import {validWebhook} from '../lib/payments';
+test('gateway accepts only the configured signature scheme',()=>{const old=process.env.FLUTTERWAVE_SIGNATURE_MODE,secret='non-secret-test-key',raw='{"event":"charge.completed"}';try{delete process.env.FLUTTERWAVE_SIGNATURE_MODE;assert.equal(validWebhook(raw,new Headers({'verif-hash':secret}),secret),true);assert.equal(validWebhook(raw,new Headers({'verif-hash':'wrong'}),secret),false);const hmac=createHmac('sha256',secret).update(raw).digest('base64');assert.equal(validWebhook(raw,new Headers({'flutterwave-signature':hmac}),secret),false);process.env.FLUTTERWAVE_SIGNATURE_MODE='hmac';assert.equal(validWebhook(raw,new Headers({'flutterwave-signature':hmac}),secret),true);assert.equal(validWebhook(raw,new Headers({'verif-hash':secret}),secret),false);assert.equal(validWebhook(raw+'x',new Headers({'flutterwave-signature':hmac}),secret),false);}finally{if(old===undefined)delete process.env.FLUTTERWAVE_SIGNATURE_MODE;else process.env.FLUTTERWAVE_SIGNATURE_MODE=old;}});

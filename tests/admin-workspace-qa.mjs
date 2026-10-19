@@ -1,0 +1,10 @@
+import {assertIsolatedTestServer} from './isolated-server.mjs';
+import {chromium} from '@playwright/test';
+import {readFile,writeFile,mkdir} from 'node:fs/promises';
+import assert from 'node:assert/strict';
+const base=process.env.TEST_BASE_URL||'http://localhost:3107';const values={ADMIN_EMAIL:process.env.ADMIN_EMAIL,ADMIN_PASSWORD:process.env.ADMIN_PASSWORD};if(!values.ADMIN_EMAIL||!values.ADMIN_PASSWORD)throw new Error('Provide isolated test admin credentials.');
+await assertIsolatedTestServer(base);
+const browser=await chromium.launch({channel:'chrome',headless:true});const checks=[];
+try{for(const width of [360,1440]){const context=await browser.newContext({viewport:{width,height:900}});const page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.goto(base+'/account');await page.locator('[name=identifier]').fill(values.ADMIN_EMAIL);await page.locator('[name=password]').fill(values.ADMIN_PASSWORD);await page.locator('.auth-card form').getByRole('button',{name:'Ingia',exact:true}).click();await page.locator('.account-actions').waitFor();await page.goto(base+'/admin');await page.locator('.admin-nav').waitFor();
+ for(const name of ['Muhtasari','Bidhaa','Oda','Wateja','Misimbo ya punguzo','Maoni ya wateja','Maombi ya bei','Mawazo ya miradi','Makundi ya bidhaa','Mipangilio ya biashara','Ujumbe wa barua pepe','Historia ya shughuli']){await page.locator('.admin-nav').getByRole('button',{name,exact:true}).click();await page.waitForTimeout(250);await page.locator('.skeleton').waitFor({state:'hidden'});assert.equal(await page.locator('.form-error').count(),0,name+' has no API error');assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false,name+' stays within the screen');checks.push({width,name});}
+ assert.deepEqual(errors,[]);await context.close();}await mkdir('test-results',{recursive:true});await writeFile('test-results/admin-qa.json',JSON.stringify(checks,null,2));console.log('PASS: 12 admin sections on mobile and desktop, with no API/runtime errors or page overflow.');}finally{await browser.close();}

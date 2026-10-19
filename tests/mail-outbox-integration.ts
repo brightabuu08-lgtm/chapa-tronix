@@ -1,0 +1,31 @@
+import assert from 'node:assert/strict';
+import {randomUUID,createHash} from 'node:crypto';
+import {db} from '../lib/db';
+import {accountToken} from '../lib/account-tokens';
+import {processEmails} from '../lib/mail';
+if(new URL(process.env.DATABASE_URL||'').pathname!=='/chapa_tronix_test')throw new Error('Only the isolated test database may be used.');
+const saved={MAIL_PROVIDER:process.env.MAIL_PROVIDER,RESEND_API_KEY:process.env.RESEND_API_KEY,MAIL_FROM:process.env.MAIL_FROM},originalFetch=globalThis.fetch;
+try{
+ const uid=randomUUID(),user=await db.user.create({data:{name:'Outbox fixture',email:uid+'@example.test',passwordHash:'test-fixture-with-no-login'}});
+ await accountToken(user,'RESET');
+ const first=await db.emailJob.findFirstOrThrow({where:{recipient:user.email},orderBy:{createdAt:'desc'}});
+ await accountToken(user,'RESET');
+ assert.equal((await db.emailJob.findUniqueOrThrow({where:{id:first.id}})).status,'CANCELLED');
+ const active=await db.emailJob.findFirstOrThrow({where:{recipient:user.email,status:'PENDING'}});
+ assert.notEqual(active.id,first.id);assert.notEqual(active.dedupeKey,first.dedupeKey);
+ await db.emailJob.update({where:{id:active.id},data:{createdAt:new Date(1)}});
+ const expiredId=createHash('sha256').update(uid).digest('hex');
+ await db.verificationToken.create({data:{id:expiredId,userId:user.id,purpose:'RESET',expiresAt:new Date(0)}});
+ const expired=await db.emailJob.create({data:{recipient:user.email,subject:'Reset password',text:'Expired test proof',dedupeKey:'account:RESET:'+user.id+':'+expiredId,createdAt:new Date(0)}});
+ process.env.MAIL_PROVIDER='resend';process.env.RESEND_API_KEY='TEST_ONLY_MOCK_KEY';process.env.MAIL_FROM='test@example.test';let sends=0;
+ globalThis.fetch=async(input)=>{assert.equal(String(input),'https://api.resend.com/emails');sends++;return Response.json({id:'mock-email-id'});};
+ const skipped=await processEmails(1,expired.id);assert.equal(skipped.sent,0);
+ const result=await processEmails(1,active.id);
+ assert.equal(sends,1);assert.equal(result.sent,1);
+ assert.equal((await db.emailJob.findUniqueOrThrow({where:{id:expired.id}})).status,'CANCELLED');
+ assert.equal((await db.emailJob.findUniqueOrThrow({where:{id:active.id}})).status,'SENT');
+ const untouched=await db.emailJob.create({data:{recipient:user.email,subject:'Untouched pending message',text:'Isolated fixture',createdAt:new Date(1)}});
+ const selected=await db.emailJob.create({data:{recipient:user.email,subject:'Selected test',text:'Isolated fixture'}});
+ const scoped=await processEmails(1,selected.id);assert.equal(scoped.sent,1);assert.equal((await db.emailJob.findUniqueOrThrow({where:{id:untouched.id}})).status,'PENDING');assert.equal((await db.emailJob.findUniqueOrThrow({where:{id:selected.id}})).status,'SENT');
+ console.log(JSON.stringify({mailOutboxChecks:7,result:'passed',provider:'in-process mock; no real email sent'}));
+}finally{globalThis.fetch=originalFetch;for(const [key,value] of Object.entries(saved)){if(value===undefined)delete process.env[key];else process.env[key]=value;}await db.$disconnect();}

@@ -1,0 +1,4 @@
+ALTER TABLE "EmailJob" ADD COLUMN "lockedAt" TIMESTAMP(3), ADD COLUMN "dedupeKey" TEXT;
+CREATE UNIQUE INDEX "EmailJob_dedupeKey_key" ON "EmailJob"("dedupeKey");
+ALTER TABLE "NewsletterSubscriber" ADD COLUMN "active" BOOLEAN NOT NULL DEFAULT true, ADD COLUMN "consentAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
+CREATE TABLE "StoreSettings" ("id" TEXT PRIMARY KEY,"data" JSONB NOT NULL,"updatedAt" TIMESTAMP(3) NOT NULL);

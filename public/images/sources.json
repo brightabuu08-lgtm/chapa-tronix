@@ -1,0 +1,80 @@
+[
+  {
+    "reuse": "Supplier/manufacturer product photo. Open reuse license not confirmed. Preserve source attribution; no implied endorsement.",
+    "file": "arduino-uno-r3.jpg",
+    "localPath": "C:\\Users\\Admin\\AppData\\Local\\Temp\\chapa-assets\\arduino-uno-r3.jpg",
+    "source": "https://www.adafruit.com/product/4806",
+    "image": "https://cdn-shop.adafruit.com/970x728/4806-00.jpg"
+  },
+  {
+    "reuse": "Supplier/manufacturer product photo. Open reuse license not confirmed. Preserve source attribution; no implied endorsement.",
+    "file": "arduino-hero.jpg",
+    "localPath": "C:\\Users\\Admin\\AppData\\Local\\Temp\\chapa-assets\\arduino-hero.jpg",
+    "source": "https://www.adafruit.com/product/4806",
+    "image": "https://cdn-shop.adafruit.com/1200x900/4806-00.jpg"
+  },
+  {
+    "reuse": "Supplier/manufacturer product photo. Open reuse license not confirmed. Preserve source attribution; no implied endorsement.",
+    "file": "esp32-devkit.jpg",
+    "localPath": "C:\\Users\\Admin\\AppData\\Local\\Temp\\chapa-assets\\esp32-devkit.jpg",
+    "source": "https://www.adafruit.com/product/3269",
+    "image": "https://cdn-shop.adafruit.com/970x728/3269-04.jpg"
+  },
+  {
+    "reuse": "Supplier/manufacturer product photo. Open reuse license not confirmed. Preserve source attribution; no implied endorsement.",
+    "file": "raspberry-pi-5.jpg",
+    "localPath": "C:\\Users\\Admin\\AppData\\Local\\Temp\\chapa-assets\\raspberry-pi-5.jpg",
+    "source": "https://www.adafruit.com/product/5812",
+    "image": "https://cdn-shop.adafruit.com/970x728/5812-01.jpg"
+  },
+  {
+    "reuse": "Supplier/manufacturer product photo. Open reuse license not confirmed. Preserve source attribution; no implied endorsement.",
+    "file": "nema17-stepper.jpg",
+    "localPath": "C:\\Users\\Admin\\AppData\\Local\\Temp\\chapa-assets\\nema17-stepper.jpg",
+    "source": "https://www.adafruit.com/product/324",
+    "image": "https://cdn-shop.adafruit.com/970x728/324-03.jpg"
+  },
+  {
+    "reuse": "Supplier/manufacturer product photo. Open reuse license not confirmed. Preserve source attribution; no implied endorsement.",
+    "file": "hc-sr04.jpg",
+    "localPath": "C:\\Users\\Admin\\AppData\\Local\\Temp\\chapa-assets\\hc-sr04.jpg",
+    "source": "https://www.adafruit.com/product/3942",
+    "image": "https://cdn-shop.adafruit.com/970x728/3942-00.jpg"
+  },
+  {
+    "reuse": "Supplier/manufacturer product photo. Open reuse license not confirmed. Preserve source attribution; no implied endorsement.",
+    "file": "multimeter.jpg",
+    "localPath": "C:\\Users\\Admin\\AppData\\Local\\Temp\\chapa-assets\\multimeter.jpg",
+    "source": "https://www.adafruit.com/product/2034",
+    "image": "https://cdn-shop.adafruit.com/970x728/2034-01.jpg"
+  },
+  {
+    "reuse": "Supplier/manufacturer product photo. Open reuse license not confirmed. Preserve source attribution; no implied endorsement.",
+    "file": "breadboard.jpg",
+    "localPath": "C:\\Users\\Admin\\AppData\\Local\\Temp\\chapa-assets\\breadboard.jpg",
+    "source": "https://www.adafruit.com/product/239",
+    "image": "https://cdn-shop.adafruit.com/970x728/239-03.jpg"
+  },
+  {
+    "reuse": "Supplier/manufacturer product photo. Open reuse license not confirmed. Preserve source attribution; no implied endorsement.",
+    "file": "sg90-servo.jpg",
+    "localPath": "C:\\Users\\Admin\\AppData\\Local\\Temp\\chapa-assets\\sg90-servo.jpg",
+    "source": "https://towerpro.com.tw/product/sg90-analog/",
+    "image": "https://towerpro.com.tw/wp-content/uploads/2014/08/SG90-1B.jpg"
+  },
+  {
+    "reuse": "Supplier/manufacturer product photo. Open reuse license not confirmed. Preserve source attribution; no implied endorsement.",
+    "file": "relay-featherwing.jpg",
+    "localPath": "C:\\Users\\Admin\\AppData\\Local\\Temp\\chapa-assets\\relay-featherwing.jpg",
+    "source": "https://www.adafruit.com/product/3191",
+    "image": "https://cdn-shop.adafruit.com/970x728/3191-04.jpg"
+  },
+  {
+    "file": "drv8833-motor-driver.jpg",
+    "localPath": "C:\\Users\\Admin\\AppData\\Local\\Temp\\chapa-assets\\drv8833-motor-driver.jpg",
+    "source": "https://www.adafruit.com/product/3297",
+    "image": "https://cdn-shop.adafruit.com/970x728/3297-05.jpg",
+    "reuse": "Adafruit product photo; open reuse license not confirmed.",
+    "specs": "DRV8833 dual H bridge; 2.7-10.8V motor power; 1.2A per channel; default 1A current limiting."
+  }
+]

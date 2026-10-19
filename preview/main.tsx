@@ -1,0 +1,17 @@
+import React from 'react';
+import {createRoot} from 'react-dom/client';
+import Store from '../components/Store';
+import '../app/globals.css';
+import '../app/mobile.css';
+import '../app/footer.css';
+import '../app/admin.css';
+import '../app/access.css';
+import '../app/login-landing.css';
+import '../app/robotics-demo.css';
+import '../app/storefront-refresh.css';
+import '../app/admin-polish.css';
+import '../app/immersive-login.css';
+import '../app/minimal.css';
+import '../app/marketplace.css';
+import '../app/compact.css';
+createRoot(document.getElementById('root')!).render(<React.StrictMode><Store preview/></React.StrictMode>);
